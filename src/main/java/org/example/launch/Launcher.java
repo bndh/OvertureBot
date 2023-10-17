@@ -13,8 +13,8 @@ import org.example.listeners.ApplicationListener;
 public class Launcher {
 
 	public static final long OVERTURE_ID = 1158457852629897249L;
+	public static final String LOCAL_FILE_PATHWAY = "src/main/java/org/example/";
 	// TODO Commands do not need to be created every time a bot is restarted, they remain bundled with the server. How can we avoid this?
-	// TODO Is there a way to tidy up the apply command, where either a video or file is required
 	// TODO Make apply and feedback commands more user friendly
 	// TODO Perhaps make it so the commands work only in a specific channel, THOUGH technically they can work anyway without fault?
 

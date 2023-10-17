@@ -8,28 +8,21 @@ import net.dv8tion.jda.api.entities.channel.ChannelType;
 import net.dv8tion.jda.api.entities.channel.concrete.ForumChannel;
 import net.dv8tion.jda.api.entities.channel.concrete.PrivateChannel;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
-import net.dv8tion.jda.api.events.message.MessageDeleteEvent;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
-import net.dv8tion.jda.api.utils.messages.MessageCreateBuilder;
-import org.example.VideoContainer;
+import org.example.launch.Launcher;
 
 import java.awt.*;
 import java.io.*;
-import java.util.HashMap;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 public class ApplicationListener extends ListenerAdapter {
 
-	private static final String LOCAL_FILE_PATHWAY = "src/main/java/org/example/";
 	private static final int MAX_APPLICATION_VIDEOS = 5;
-	private static final int MAX_APPLICATION_TIME = 600000; // In milliseconds
+	private static final int MAX_SESSION_DURATION = 600000; // In milliseconds
 
 	private final JDA api;
 	private final Guild overture;
 	private ForumChannel overtureAppChannel;
-	private final HashMap<PrivateChannel, VideoContainer> activeSessions = new HashMap<>();
 
 	// TODO Is it wise to store all the applicationAttachments in here?
 	// TODO Send application button SICK
@@ -39,6 +32,10 @@ public class ApplicationListener extends ListenerAdapter {
 	// TODO Review asynchronous processing
 	// TODO Overwrite old applications with new ones
 	// TODO Cool-down timer on applying
+	// TODO Anonymous applications
+	// TODO Desired rank option?
+	// TODO Cancel feature
+	// TODO Simultaneous appending to and deleting from a file
 
 	public ApplicationListener(JDA api, Guild overture) {
 		this.api = api;
@@ -67,15 +64,17 @@ public class ApplicationListener extends ListenerAdapter {
 							Apply for a new role by sending messages here.
 							A maximum of **5 links or files** may be attached.
 							
-							End your application by typing **"send"**.
+							End your application by typing **"send"** or clicking the **send button**.
 							If you exceed the maximum attachment limit, not all of your videos will be included.
+							
+							Your application can be cancelled early by typing **"cancel"** or clicking the **cancel button**.
 					""");
 			eb.setThumbnail("https://upload.wikimedia.org/wikipedia/en/3/35/Geometry_Dash_Logo.PNG");
 			eb.setTitle("Application process initiated.");
-			userChannel.sendMessageEmbeds(eb.build()).queue();
+			Message applicationMessage = userChannel.sendMessageEmbeds(eb.build()).complete();
 
 			// Update ID file and hashmap
-			appendApplication(userChannel.getId(), System.currentTimeMillis() + MAX_APPLICATION_TIME);
+			appendSessionEntry(applicationMessage.getId(), System.currentTimeMillis() + MAX_SESSION_DURATION); // The channel representing the application session and the time in millis when the session will expire
 
 			// Respond to command
 			event.getHook().sendMessage( // Respond to the command in the original channel
@@ -88,92 +87,94 @@ public class ApplicationListener extends ListenerAdapter {
 	public void onMessageReceived(MessageReceivedEvent event) {
 		// TODO Restrict possibilities more efficiently
 		if(event.getChannelType() == ChannelType.PRIVATE && !event.getAuthor().isBot()) { // Whittle down the message possibilities
-			PrivateChannel eventChannel = event.getChannel().asPrivateChannel();
-			VideoContainer applicationVideos = activeSessions.get(eventChannel);
+			PrivateChannel privateChannel = event.getChannel().asPrivateChannel();
 
-			if(activeSessions.containsKey(eventChannel)) { // If the message comes from a DM currently being treated as an application
-				if(event.getMessage().getContentStripped().equalsIgnoreCase("send")) { // Send application
-					if(applicationVideos.getSize() == 0) {
-						eventChannel.sendMessage("No videos attached!\nPlease add some videos before attempting to apply.").queue();
-					} else {
-						MessageCreateBuilder mcb = new MessageCreateBuilder();
-						EmbedBuilder eb = new EmbedBuilder();
-
-						// Generic StringBuilder formatting
-						eb.setAuthor("Overture Application Team");
-						eb.setColor(Color.ORANGE);
-
-						// Application text and title
-						eb.setTitle("New Application from **" + eventChannel.getUser().getEffectiveName() + "**");
-						StringBuilder sb = new StringBuilder();
-						for (String s : applicationVideos.getLinks()) sb.append(s).append("\n");
-						for (Message.Attachment a : applicationVideos.getAttachments()) sb.append(a.getUrl()).append("\n");
-						eb.setDescription(sb.toString());
-						mcb.addEmbeds(eb.build());
-
-						// Create application
-						overtureAppChannel.createForumPost("New Application!", mcb.build()).queue();
-
-						// Respond in DM
-						eb.setDescription(
-								"""
-												Your application has been sent!
-												Expect a reply from the application team in the coming days.
-										""");
-						eb.setTitle("Application process complete.");
-						eventChannel.sendMessageEmbeds(eb.build()).queue();
-
-						// Remove channel from active sessions
-						activeSessions.remove(eventChannel);
-					}
-				} else if(activeSessions.get(eventChannel).getSize() == MAX_APPLICATION_VIDEOS) { // Application videos full
-					 eventChannel.sendMessage("Maximum video limit reached!\nPlease remove some videos before attempting to attach more or some videos may be lost.").queue();
-				} else { // Scan for videos and update the hashmap
-					// TODO Streamline this
-					// Manage links
-					Pattern pattern = Pattern.compile("\\b(https?|ftp|file)://[-a-zA-Z0-9+&@#/%?=~_|!:,.;]*[-a-zA-Z0-9+&@#/%=~_|]"); // URL Regex
-					Matcher matcher = pattern.matcher(event.getMessage().getContentStripped());
-					while(matcher.find()) {
-						applicationVideos.appendLink(matcher.group());
-						if(applicationVideos.getSize() >= MAX_APPLICATION_VIDEOS) break;
-					}
-
-					// Manage attachments
-					for(Message.Attachment a : event.getMessage().getAttachments()) {
-						applicationVideos.appendAttachment(a);
-						if(applicationVideos.getSize() >= MAX_APPLICATION_VIDEOS) break;
-					}
-				}
-			}
+//			if(activeSessions.containsKey(privateChannel)) { // If the message comes from a DM currently being treated as an application
+//				VideoContainer applicationVideos = activeSessions.get(privateChannel);
+//
+//				if(event.getMessage().getContentStripped().equalsIgnoreCase("send")) { // Send application
+//					if(applicationVideos.getSize() == 0) {
+//						privateChannel.sendMessage("No videos attached!\nPlease add some videos before attempting to apply.").queue();
+//					} else {
+//						MessageCreateBuilder mcb = new MessageCreateBuilder();
+//						EmbedBuilder eb = new EmbedBuilder();
+//
+//						// Generic StringBuilder formatting
+//						eb.setAuthor("Overture Application Team");
+//						eb.setColor(Color.ORANGE);
+//
+//						// Application text and title
+//						eb.setTitle("New Application from **" + privateChannel.getUser().getEffectiveName() + "**");
+//						StringBuilder sb = new StringBuilder();
+//						for (String s : applicationVideos.getLinks()) sb.append(s).append("\n");
+//						for (Message.Attachment a : applicationVideos.getAttachments()) sb.append(a.getUrl()).append("\n");
+//						eb.setDescription(sb.toString());
+//						mcb.addEmbeds(eb.build());
+//
+//						// Create application
+//						overtureAppChannel.createForumPost("New Application!", mcb.build()).queue();
+//
+//						// Respond in DM
+//						eb.setDescription("""
+//										Your application has been sent!
+//										Expect a reply from the application team in the coming days.
+//										""");
+//						eb.setTitle("Application process complete.");
+//						privateChannel.sendMessageEmbeds(eb.build()).queue();
+//
+//						// Remove channel from active sessions
+//						activeSessions.remove(privateChannel);
+//					}
+//				} else if(activeSessions.get(privateChannel).getSize() == MAX_APPLICATION_VIDEOS) { // Application videos full
+//					 privateChannel.sendMessage("Maximum video limit reached!\nPlease remove some videos before attempting to attach more or some videos may be lost.").queue();
+//				} else { // Scan for videos and update the hashmap
+//					// TODO Streamline this
+//					// Manage links
+//					Pattern pattern = Pattern.compile("\\b(https?|ftp|file)://[-a-zA-Z0-9+&@#/%?=~_|!:,.;]*[-a-zA-Z0-9+&@#/%=~_|]"); // URL Regex
+//					Matcher matcher = pattern.matcher(event.getMessage().getContentStripped());
+//					while(matcher.find()) {
+//						applicationVideos.appendLinks(matcher.group());
+//						if(applicationVideos.getSize() >= MAX_APPLICATION_VIDEOS) break;
+//					}
+//
+//					// Manage attachments
+//					for(Message.Attachment a : event.getMessage().getAttachments()) {
+//						applicationVideos.appendAttachments(a);
+//						if(applicationVideos.getSize() >= MAX_APPLICATION_VIDEOS) break;
+//					}
+//				}
+//			}
 		}
 	}
 
-
-	@Override
-	public void onMessageDelete(MessageDeleteEvent event) {
-
+	public void sendApplication(Message applicationMessage) {
+		PrivateChannel userDm = applicationMessage.getChannel().asPrivateChannel();
+//		userDm.getIterableHistory().cache(false).forEachAsync((message) -> { // No need to update cache as we only need the history for this one action
+//					if(!message.getAuthor().isBot() && !message.getId().equals(applicationMessage.getId())) {
+//
+//					}
+//				});
 	}
 
-	public void appendApplication(String channelId, long timeout) {
+	public void appendSessionEntry(String messageId, long timeout) {
 		try {
-			BufferedWriter writer = new BufferedWriter(new FileWriter(LOCAL_FILE_PATHWAY + "ids/applicationIDs.txt", true));
+			BufferedWriter writer = new BufferedWriter(new FileWriter(Launcher.LOCAL_FILE_PATHWAY + "ids/sessionIDs.txt", true));
 			writer.append("\n")
-					.append(channelId).append(", ")
+					.append(messageId).append(", ")
 					.append(String.valueOf(timeout));
 			writer.close();
-			activeSessions.put(api.getPrivateChannelById(channelId), new VideoContainer());
 		} catch (IOException e) {
 			throw new RuntimeException(e);
 		}
 	}
 
-	public String[] scanAppFile(String channelId) {
+	public String[] getSessionEntry(String messageId) { // Returns the line in sessionIDs corresponding to the messageId or otherwise returns null if it is not found
 		try {
-			BufferedReader reader = new BufferedReader((new FileReader(LOCAL_FILE_PATHWAY + "ids/applicationIDs.txt")));
+			BufferedReader reader = new BufferedReader((new FileReader(Launcher.LOCAL_FILE_PATHWAY + "ids/sessionIDs.txt")));
 			String line = reader.readLine(); // First line is populated with labels
 			while((line = reader.readLine()) != null) {
 				String[] lineArray = line.split(", ");
-				if(line.split(", ")[0].equals(channelId)) {
+				if(line.split(", ")[0].equals(messageId)) {
 					return lineArray;
 				}
 			}
