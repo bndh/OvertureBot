@@ -14,18 +14,16 @@ public class Launcher {
 
 	public static final long OVERTURE_ID = 1158457852629897249L;
 	public static final String LOCAL_FILE_PATHWAY = "src/main/java/org/example/";
-	// TODO Commands do not need to be created every time a bot is restarted, they remain bundled with the server. How can we avoid this?
 	// TODO Make apply and feedback commands more user friendly
 	// TODO Perhaps make it so the commands work only in a specific channel, THOUGH technically they can work anyway without fault?
 
 	public static void main(String[] args) throws InterruptedException {
 		// BUILD API
 		JDABuilder apiBuilder = JDABuilder.create( // Build the API for our use case
-				"",
+				"not for you",
 				GatewayIntent.GUILD_MEMBERS,
 				GatewayIntent.DIRECT_MESSAGES,
 				GatewayIntent.MESSAGE_CONTENT
-
 		);
 		apiBuilder.setActivity(Activity.listening("GD songs..."));
 		apiBuilder.disableCache(CacheFlag.ACTIVITY, CacheFlag.VOICE_STATE, CacheFlag.EMOJI, CacheFlag.STICKER, CacheFlag.CLIENT_STATUS, CacheFlag.ONLINE_STATUS, CacheFlag.SCHEDULED_EVENTS);
