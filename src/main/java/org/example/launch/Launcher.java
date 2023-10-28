@@ -20,7 +20,7 @@ public class Launcher {
 	public static void main(String[] args) throws InterruptedException {
 		// BUILD API
 		JDABuilder apiBuilder = JDABuilder.create( // Build the API for our use case
-				"not for you",
+				"",
 				GatewayIntent.GUILD_MEMBERS,
 				GatewayIntent.DIRECT_MESSAGES,
 				GatewayIntent.MESSAGE_CONTENT

@@ -44,7 +44,7 @@ public class IDManager {
 		writer.close();
 	}
 
-	public boolean scanForId(String scanTargetId) throws IOException {
+	public boolean containsKeyId(String scanTargetId) throws IOException {
 		BufferedReader reader = new BufferedReader(new FileReader(idFile));
 		String line;
 		while((line = reader.readLine()) != null) {
