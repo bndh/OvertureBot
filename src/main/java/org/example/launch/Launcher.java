@@ -1,14 +1,19 @@
 package org.example.launch;
 
+import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
 import net.dv8tion.jda.api.entities.Activity;
 import net.dv8tion.jda.api.entities.Guild;
+import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.interactions.commands.build.Commands;
 import net.dv8tion.jda.api.requests.GatewayIntent;
 import net.dv8tion.jda.api.utils.cache.CacheFlag;
 import org.example.exceptions.OvertureNotFoundException;
 import org.example.listeners.ApplicationListener;
+
+import java.awt.*;
+import java.time.Instant;
 
 public class Launcher {
 
@@ -39,13 +44,46 @@ public class Launcher {
 		}
 
 		overture.updateCommands().addCommands(
-				Commands.slash("apply", "Apply for a new creator skill role.")
-		).queue();
-		api.updateCommands().addCommands(
-				Commands.slash("send", "Send your application to the moderators.")
+				Commands.slash("apply", "Apply for a new creator skill role."),
+				Commands.slash("addlc", "Create a layout creator role.")
+						.addOption(OptionType.STRING, "role-name", "The name of the role to be created.", true)
+						.addOption(OptionType.STRING, "emoji-name", "The name of the matching emoji to be created.", true)
+						.addOption(OptionType.STRING, "role-hex", "The color of the role.", true)
+						.addOption(OptionType.ATTACHMENT, "icon", "The icon that the role and emoji will use.", true),
+				Commands.slash("scanlc", "Load a layout creator role into memory.")
+						.addOption(OptionType.STRING, "role-name", "The name of the role to be loaded.", true)
+						.addOption(OptionType.STRING, "emoji-name", "The name of the emoji that corresponds with the role.", true)
 		).queue();
 
 		api.addEventListener(new ApplicationListener(api, overture));
 
 	}
+
+	public enum EmbedStates {
+		SUCCESS(new Color(67, 181, 129)),
+		NEUTRAL(Color.ORANGE),
+		FAILURE(new Color(240, 71, 71));
+
+		private final Color color;
+		EmbedStates(Color color) { this.color = color; }
+		public Color getColor() { return color;}
+	}
+
+	public static EmbedBuilder getStyledEmbedBuilder(EmbedStates embedState, String thumbnailLink) {
+		EmbedBuilder embedBuilder = new EmbedBuilder();
+		embedBuilder.setAuthor("Overture Systems");
+		embedBuilder.setTimestamp(Instant.now());
+		embedBuilder.setColor(embedState.getColor());
+		if(thumbnailLink != null) embedBuilder.setThumbnail(thumbnailLink);
+		return embedBuilder;
+	}
+
+	public static EmbedBuilder getStyledEmbedBuilder(EmbedStates embedState) {
+		return getStyledEmbedBuilder(embedState, null);
+	}
+
+	public static EmbedBuilder getStyledEmbedBuilder() {
+		return getStyledEmbedBuilder(EmbedStates.NEUTRAL, null);
+	}
+
 }
