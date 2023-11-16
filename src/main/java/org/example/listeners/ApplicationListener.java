@@ -8,7 +8,6 @@ import net.dv8tion.jda.api.entities.channel.concrete.ForumChannel;
 import net.dv8tion.jda.api.entities.channel.concrete.PrivateChannel;
 import net.dv8tion.jda.api.entities.channel.concrete.ThreadChannel;
 import net.dv8tion.jda.api.entities.channel.forums.ForumPost;
-import net.dv8tion.jda.api.entities.emoji.CustomEmoji;
 import net.dv8tion.jda.api.entities.emoji.Emoji;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
@@ -24,9 +23,7 @@ import org.example.ids.idmanagers.IDManager;
 import org.example.ids.idmanagers.TimedIDManager;
 import org.example.launch.Launcher;
 
-import java.awt.*;
 import java.io.IOException;
-import java.util.List;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.regex.Matcher;
@@ -35,9 +32,10 @@ import java.util.regex.Pattern;
 public class ApplicationListener extends ListenerAdapter {
 
 	private static final int MAX_APPLICATION_VIDEOS = 5;
-	private static final int MAX_SESSION_DURATION = 10000; // 600000; // 10 minutes in milliseconds
+	private static final int MAX_SESSION_DURATION = 600000; // 10 minutes in milliseconds
 	private static final int MESSAGE_SCAN_LIMIT = 20;
 
+	private final Launcher launcher;
 	private final JDA api;
 	private final Guild overture;
 	private final TimedIDManager sessionManager;
@@ -66,17 +64,18 @@ public class ApplicationListener extends ListenerAdapter {
 	// TODO Maybe make a error cases file or something that I can read the information from for all of my embedBuilders
 	// TODO Check out the files class for one time use things
 
-	public ApplicationListener(JDA api, Guild overture) {
+	public ApplicationListener(Launcher launcher, JDA api, Guild overture) {
+		this.launcher = launcher;
 		this.api = api;
 		this.overture = overture;
 		timeoutTimer = new Timer(true);
 		applicationTimeouts = new ArrayList<>();
 
 		sessionManager = new TimedIDManager(
-				(Launcher.LOCAL_FILE_PATHWAY + "ids/sessionIDs.txt"),
+				Launcher.LOCAL_FILE_PATHWAY + "ids/sessionIDs.txt",
 				entryArray -> {
 					EmbedBuilder embedBuilder = Launcher.getStyledEmbedBuilder(Launcher.EmbedStates.FAILURE);
-					embedBuilder.setTitle("Application timed out!");
+					embedBuilder.setTitle("Application Timed Out!");
 					embedBuilder.setDescription("Your application session has expired.\nPlease try starting a new application.");
 
 					Message applicationMessage = api.getPrivateChannelById(entryArray[0]).retrieveMessageById(entryArray[1]).complete();
@@ -161,41 +160,6 @@ public class ApplicationListener extends ListenerAdapter {
 
 				event.getHook().sendMessage("Something went wrong! Please try again.").queue();
 				throw new RuntimeException(e);
-			}
-		} else if(event.getName().equals("addlc")) {
-			// TODO Try using futures here and catch less haphazardly
-			try {
-				Message.Attachment iconAttachment = event.getOption("icon").getAsAttachment();
-				String emojiName = event.getOption("emoji-name").getAsString();
-				String roleName = event.getOption("role-name").getAsString();
-				String roleHex = event.getOption("role-hex").getAsString();
-
-				Icon icon = iconAttachment.getProxy().downloadAsIcon().get();
-				CustomEmoji rankEmoji = overture.createEmoji(emojiName, icon).complete();
-				Role rankRole = overture.createRole()
-						.setName(roleName)
-						.setColor(new Color(
-								Integer.valueOf(roleHex.substring(0, 2), 16), // Hex to RGB
-								Integer.valueOf(roleHex.substring(2, 4), 16),
-								Integer.valueOf(roleHex.substring(4, 6), 16)))
-						//.setIcon(icon)
-						.setMentionable(true)
-				.complete();
-
-				rankManager.appendEntry(new String[]{
-						rankRole.getId(),
-						rankEmoji.getId()
-				});
-
-				EmbedBuilder embedBuilder = Launcher.getStyledEmbedBuilder(Launcher.EmbedStates.SUCCESS);
-				embedBuilder.setTitle("Role Creation Successful!");
-				embedBuilder.setDescription("The role and emoji were created successfully.\nThey have also been loaded into the bot's storage.");
-				event.getHook().sendMessageEmbeds(embedBuilder.build()).queue();
-			} catch(ExecutionException | InterruptedException | NullPointerException | IOException e) {
-				EmbedBuilder embedBuilder = Launcher.getStyledEmbedBuilder(Launcher.EmbedStates.FAILURE);
-				embedBuilder.setTitle("Role Creation Failed!");
-				embedBuilder.setDescription("Something went wrong! PLease try again.");
-				event.getHook().sendMessageEmbeds(embedBuilder.build()).queue();
 			}
 		}
 	}
@@ -312,7 +276,7 @@ public class ApplicationListener extends ListenerAdapter {
 			}
 		}
 
-		sessionManager.deleteEntry(userDm.getId()); // The only destructive operation so we do it last
+		sessionManager.deleteEntry(userDm.getId()); // The only destructive operation so we do it last?
 
 		// At this point no exceptions should be thrown
 		EmbedBuilder embedBuilder = Launcher.getStyledEmbedBuilder();

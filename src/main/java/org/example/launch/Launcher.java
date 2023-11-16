@@ -7,10 +7,12 @@ import net.dv8tion.jda.api.entities.Activity;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.interactions.commands.build.Commands;
+import net.dv8tion.jda.api.interactions.components.selections.StringSelectMenu;
 import net.dv8tion.jda.api.requests.GatewayIntent;
 import net.dv8tion.jda.api.utils.cache.CacheFlag;
 import org.example.exceptions.OvertureNotFoundException;
 import org.example.listeners.ApplicationListener;
+import org.example.listeners.RoleListener;
 
 import java.awt.*;
 import java.time.Instant;
@@ -19,10 +21,15 @@ public class Launcher {
 
 	public static final long OVERTURE_ID = 1158457852629897249L;
 	public static final String LOCAL_FILE_PATHWAY = "src/main/java/org/example/";
+	private final StringSelectMenu.Builder roleMenuTemplate = StringSelectMenu.create("roles");
 	// TODO Make apply and feedback commands more user friendly
 	// TODO Perhaps make it so the commands work only in a specific channel, THOUGH technically they can work anyway without fault?
 
 	public static void main(String[] args) throws InterruptedException {
+		new Launcher();
+	}
+
+	public Launcher() throws InterruptedException {
 		// BUILD API
 		JDABuilder apiBuilder = JDABuilder.create( // Build the API for our use case
 				"",
@@ -47,16 +54,16 @@ public class Launcher {
 				Commands.slash("apply", "Apply for a new creator skill role."),
 				Commands.slash("addlc", "Create a layout creator role.")
 						.addOption(OptionType.STRING, "role-name", "The name of the role to be created.", true)
-						.addOption(OptionType.STRING, "emoji-name", "The name of the matching emoji to be created.", true)
 						.addOption(OptionType.STRING, "role-hex", "The color of the role.", true)
+						.addOption(OptionType.STRING, "emoji-name", "The name of the matching emoji to be created.", true)
 						.addOption(OptionType.ATTACHMENT, "icon", "The icon that the role and emoji will use.", true),
 				Commands.slash("scanlc", "Load a layout creator role into memory.")
 						.addOption(OptionType.STRING, "role-name", "The name of the role to be loaded.", true)
 						.addOption(OptionType.STRING, "emoji-name", "The name of the emoji that corresponds with the role.", true)
 		).queue();
 
-		api.addEventListener(new ApplicationListener(api, overture));
-
+		api.addEventListener(new ApplicationListener(this, api, overture));
+		api.addEventListener(new RoleListener(this, api, overture));
 	}
 
 	public enum EmbedStates {
@@ -85,5 +92,7 @@ public class Launcher {
 	public static EmbedBuilder getStyledEmbedBuilder() {
 		return getStyledEmbedBuilder(EmbedStates.NEUTRAL, null);
 	}
+
+	public StringSelectMenu.Builder getRoleMenuTemplate() { return roleMenuTemplate; }
 
 }
